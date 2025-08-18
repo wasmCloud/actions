@@ -1,0 +1,3 @@
+[submodule "setup-wash-action"]
+	path = setup-wash-action
+	url = https://github.com/wasmCloud/setup-wash-action.git
