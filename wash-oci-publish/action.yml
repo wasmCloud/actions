@@ -1,0 +1,80 @@
+name: 'Publish Wasm component'
+description: 'Build a WebAssembly component using wash and output the artifact path'
+
+# Workflows using this action will need the following permissions:
+# permissions:
+#   contents: write
+#   packages: write
+#   attestations: write
+#   id-token: write
+
+inputs:
+  registry:
+    description: 'Container registry to push to'
+    required: false
+    default: 'ghcr.io'
+  component_path:
+    description: 'Path to the built WebAssembly component'
+    required: true
+  attestation:
+    description: 'Whether to generate an attestation for the published artifact'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+    - name: Setup wash CLI
+      uses: wasmcloud/setup-wash-action@main
+      with:
+        wash-version: 1.0.0-beta.7
+
+    - name: Login to container registry
+      uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set IMAGE_NAME env as lower-case repository name
+      shell: bash
+      run: echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+    - name: Push Wasm component to container registry
+      id: push
+      shell: bash
+      run: |
+        push_output=$(wash oci push --output json ${{ inputs.registry }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} "${{ inputs.component_path }}")
+        digest=$(echo "$push_output" | jq -r .data.digest)
+        if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+          echo "Failed to determine pushed component digest $push_output" >&2
+          exit 1
+        fi
+        echo "digest=$digest" >> $GITHUB_OUTPUT
+
+    - name: Generate artifact attestation
+      if: ${{ inputs.attestation == 'true' }}
+      uses: actions/attest-build-provenance@v3
+      with:
+        subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+        subject-digest: ${{ steps.push.outputs.digest }}
+        push-to-registry: true
+
+    - uses: taiki-e/install-action@4575ae687efd0e2c78240087f26013fb2484987f # v2.62.6
+      if: ${{ inputs.attestation == 'true' }}
+      with:
+        tool: auditable2cdx
+
+    - name: Extract the SBOM from the component
+      if: ${{ inputs.attestation == 'true' }}
+      shell: bash
+      run: auditable2cdx ${{ inputs.component_path }} >> ${{ env.IMAGE_NAME }}.spdx.json
+
+    - uses: actions/attest-sbom@v3
+      if: ${{ inputs.attestation == 'true' }}
+      with:
+        subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+        subject-digest: ${{ steps.push.outputs.digest }}
+        sbom-path: ${{ env.IMAGE_NAME }}.spdx.json

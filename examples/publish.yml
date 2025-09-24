@@ -1,0 +1,23 @@
+# In workflows using multiple wasmCloud actions:
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      # Setup once at the beginning
+      - uses: actions/checkout@v4
+      - uses: wasmcloud/actions/setup-wasmcloud-action@main
+
+      # For cargo built projects, setup cargo-auditable to create SBOMs
+      # and enable attestation support in wash builds
+      - uses: wasmcloud/actions/setup-cargo-auditable@main
+
+      - name: Build component
+        id: build
+        uses: wasmcloud/actions/wash-build@main
+      
+      - name: Publish component
+        uses: wasmcloud/actions/oci-publish@main
+        with:
+          component_path: ${{ steps.build.outputs.component_path }}
+          registry: ghcr.io
+          attestation: true

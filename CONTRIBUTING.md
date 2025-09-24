@@ -5,3 +5,22 @@ This project uses submodules so that actions may be added to the GitHub marketpl
 ```bash
 git clone --recurse-submodules https://github.com/wasmCloud/actions.git
 ```
+
+## Lint
+
+We use [GitHub Super-Linter](https://github.com/github/super-linter) to ensure code quality and consistency. You can run the linter locally using Docker:
+
+```bash
+# optionally add --platform linux/amd64 if on arm
+docker run \
+   -e "FILTER_REGEX_EXCLUDE=dist/**/*" \
+   -e VALIDATE_JAVASCRIPT_ES=false \
+   -e VALIDATE_JSCPD=false \
+   -e VALIDATE_TYPESCRIPT_ES=false \
+   -e FIX_MARKDOWN_PRETTIER=true \
+   -e FIX_YAML_PRETTIER=true \
+   -e DEFAULT_BRANCH=main \
+   -e RUN_LOCAL=true \
+   -v .:/tmp/lint \
+   ghcr.io/super-linter/super-linter:slim-latest
+```

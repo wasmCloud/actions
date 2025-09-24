@@ -1,0 +1,38 @@
+name: 'Wash Build'
+description: |
+  Build a WebAssembly component using wash and output the component path
+
+  wash CLI must be installed and available in PATH. We recommend using the
+  wasmcloud/setup-wash-action prior to this action to install wash.
+
+outputs:
+  component_path:
+    description: 'Path to the built WebAssembly component'
+    value: ${{ steps.build.outputs.component_path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Compile Wasm binary and capture component path
+      id: build
+      shell: bash
+      run: |
+        set -e
+
+        # TODO artifact_path field is being renamed to component_path in future wash releases
+        # For now, capture artifact_path and set as component_path output
+        # https://github.com/wasmCloud/wash/pull/79
+        artifact_path=$(wash build --output json | jq -r .data.artifact_path)
+        if [ -z "$artifact_path" ] || [ "$artifact_path" = "null" ]; then
+          echo "Failed to determine built component path" >&2
+          exit 1
+        fi
+        echo "component_path=$artifact_path" >> $GITHUB_OUTPUT
+
+    - name: Verify Wasm binary exists
+      shell: bash
+      run: |
+        if [ ! -f "${{ steps.build.outputs.component_path }}" ]; then
+          echo "Error: ${{ steps.build.outputs.component_path }} not found!" >&2
+          exit 1
+        fi
