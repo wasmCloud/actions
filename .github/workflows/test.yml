@@ -1,0 +1,70 @@
+name: Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
+jobs:
+  test-composite-actions:
+    name: Test Composite Actions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup wash CLI
+        uses: ./setup-wash-action
+        with:
+          wash-version: wash-v1.0.0-beta.7
+
+      - name: Setup cargo-auditable
+        uses: ./setup-wash-cargo-auditable
+        with:
+          attestation: 'true'
+
+      - name: Create test Rust project
+        run: |
+          cargo init --name test-component
+
+      - name: Test wash-build action
+        id: build
+        uses: ./wash-build
+
+      - name: Verify build output
+        run: |
+          echo "Built component at: ${{ steps.build.outputs.component_path }}"
+          if [ ! -f "${{ steps.build.outputs.component_path }}" ]; then
+            echo "Error: Built component not found!"
+            exit 1
+          fi
+
+      - name: Verify wash config updated with cargo-auditable
+        shell: bash
+        run: |
+          cat .wash/config.json | jq .
+          if ! jq -e '.build.rust.custom_command == "cargo auditable build --release --target wasm32-wasip2"' .wash/config.json; then
+            echo "Error: .wash/config.json not updated correctly"
+            exit 1
+          fi
+
+      - name: Test wash-oci-publish action
+        uses: ./wash-oci-publish
+        with:
+          component_path: ${{ steps.build.outputs.component_path }}
+          registry: ghcr.io
+          attestation: 'true'
+        env:
+          GITHUB_REF_NAME: test
