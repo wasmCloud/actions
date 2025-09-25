@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup wash CLI
         uses: ./setup-wash-action
@@ -32,8 +34,6 @@ jobs:
 
       - name: Setup cargo-auditable
         uses: ./setup-wash-cargo-auditable
-        with:
-          attestation: 'true'
 
       - name: Create test Rust project
         run: |
@@ -45,11 +45,13 @@ jobs:
 
       - name: Verify build output
         run: |
-          echo "Built component at: ${{ steps.build.outputs.component_path }}"
-          if [ ! -f "${{ steps.build.outputs.component_path }}" ]; then
+          echo "Built component at: ${STEPS_BUILD_OUTPUTS_COMPONENT_PATH}"
+          if [ ! -f "${STEPS_BUILD_OUTPUTS_COMPONENT_PATH}" ]; then
             echo "Error: Built component not found!"
             exit 1
           fi
+        env:
+          STEPS_BUILD_OUTPUTS_COMPONENT_PATH: ${{ steps.build.outputs.component_path }}
 
       - name: Verify wash config updated with cargo-auditable
         shell: bash
@@ -60,11 +62,10 @@ jobs:
             exit 1
           fi
 
-      - name: Test wash-oci-publish action
+      - name: Test wash-oci-publish action (multiple tags)
         uses: ./wash-oci-publish
         with:
           component_path: ${{ steps.build.outputs.component_path }}
           registry: ghcr.io
-          attestation: 'true'
-        env:
-          GITHUB_REF_NAME: test
+          attestation: "true"
+          image_tags: test-${{ github.run_id }}, latest

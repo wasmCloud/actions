@@ -20,6 +20,10 @@ inputs:
     description: "Whether to generate an attestation for the published artifact"
     required: false
     default: "false"
+  image_tags:
+    description: "Additional tags to apply to the published image, comma-separated"
+    required: false
+    default: ${{ github.ref_name }}
 
 runs:
   using: "composite"
@@ -46,13 +50,30 @@ runs:
       id: push
       shell: bash
       run: |
-        push_output=$(wash oci push --output json ${{ inputs.registry }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} "${{ inputs.component_path }}")
-        digest=$(echo "$push_output" | jq -r .data.digest)
-        if [ -z "$digest" ] || [ "$digest" = "null" ]; then
-          echo "Failed to determine pushed component digest $push_output" >&2
-          exit 1
-        fi
-        echo "digest=$digest" >> $GITHUB_OUTPUT
+        # Split comma-separated tags and push each one
+        IFS=',' read -ra TAGS <<< "${{ inputs.image_tags }}"
+
+        digests=()
+        for tag in "${TAGS[@]}"; do
+          # Trim whitespace
+          tag=$(echo "$tag" | xargs)
+          echo "Pushing ${{ inputs.registry }}/${{ env.IMAGE_NAME }}:$tag"
+          
+          push_output=$(wash oci push --output json "${{ inputs.registry }}/${{ env.IMAGE_NAME }}:$tag" "${{ inputs.component_path }}")
+          digest=$(echo "$push_output" | jq -r .data.digest)
+          
+          if [ -z "$digest" ] || [ "$digest" = "null" ]; then
+            echo "Failed to determine pushed component digest for tag $tag: $push_output" >&2
+            exit 1
+          fi
+          
+          echo "Component pushed with digest: $digest for tag: $tag"
+          digests+=("$digest")
+        done
+
+        # Use the first digest for attestation (all pushes of the same content have the same digest)
+        echo "digest=${digests[0]}" >> $GITHUB_OUTPUT
+        echo "all_digests=$(IFS=,; echo "${digests[*]}")" >> $GITHUB_OUTPUT
 
     - name: Generate artifact attestation
       if: ${{ inputs.attestation == 'true' }}

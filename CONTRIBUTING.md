@@ -22,6 +22,7 @@ docker run \
    -e VALIDATE_BIOME_LINT=false \
    -e FIX_MARKDOWN_PRETTIER=true \
    -e FIX_YAML_PRETTIER=true \
+   -e FIX_GITHUB_ACTIONS_ZIZMOR=true \
    -e DEFAULT_BRANCH=main \
    -e RUN_LOCAL=true \
    -v .:/tmp/lint \
