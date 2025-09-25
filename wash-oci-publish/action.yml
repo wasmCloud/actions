@@ -1,5 +1,5 @@
-name: 'Publish Wasm component'
-description: 'Build a WebAssembly component using wash and output the artifact path'
+name: "Publish Wasm component"
+description: "Build a WebAssembly component using wash and output the artifact path"
 
 # Workflows using this action will need the following permissions:
 # permissions:
@@ -10,19 +10,19 @@ description: 'Build a WebAssembly component using wash and output the artifact p
 
 inputs:
   registry:
-    description: 'Container registry to push to'
+    description: "Container registry to push to"
     required: false
-    default: 'ghcr.io'
+    default: "ghcr.io"
   component_path:
-    description: 'Path to the built WebAssembly component'
+    description: "Path to the built WebAssembly component"
     required: true
   attestation:
-    description: 'Whether to generate an attestation for the published artifact'
+    description: "Whether to generate an attestation for the published artifact"
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 

@@ -1,4 +1,4 @@
-name: 'Setup Cargo Auditable for wash builds'
+name: "Setup Cargo Auditable for wash builds"
 description: |
   Configures a rust toolchain with cargo-auditable for use in building
   WebAssembly components with wash and creating an auditable SBOM.
@@ -8,11 +8,11 @@ description: |
 
 outputs:
   component_path:
-    description: 'Path to the built WebAssembly component'
+    description: "Path to the built WebAssembly component"
     value: ${{ steps.build.outputs.component_path }}
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - uses: taiki-e/install-action@4575ae687efd0e2c78240087f26013fb2484987f # v2.62.6
       if: ${{ inputs.attestation == 'true' }}
@@ -23,7 +23,7 @@ runs:
       shell: bash
       run: |
         mkdir -p .wash
-        
+
         # Create or update config with jq, merging with existing config
         if [ -f .wash/config.json ]; then
           # Merge with existing config, ensuring nested objects exist

@@ -20,8 +20,8 @@ Add the following step to your GitHub workflow:
   uses: wasmcloud/actions/wash-oci-publish@main
   with:
     component_path: ${{ steps.build.outputs.artifact_path }}
-    registry: ghcr.io  # optional, defaults to ghcr.io
-    attestation: true  # optional, defaults to false
+    registry: ghcr.io # optional, defaults to ghcr.io
+    attestation: true # optional, defaults to false
 ```
 
 ## Prerequisites

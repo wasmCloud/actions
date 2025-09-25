@@ -13,10 +13,13 @@ We use [GitHub Super-Linter](https://github.com/github/super-linter) to ensure c
 ```bash
 # optionally add --platform linux/amd64 if on arm
 docker run \
+   --platform linux/amd64 \
    -e "FILTER_REGEX_EXCLUDE=dist/**/*" \
    -e VALIDATE_JAVASCRIPT_ES=false \
    -e VALIDATE_JSCPD=false \
    -e VALIDATE_TYPESCRIPT_ES=false \
+   -e VALIDATE_BIOME_FORMAT=false \
+   -e VALIDATE_BIOME_LINT=false \
    -e FIX_MARKDOWN_PRETTIER=true \
    -e FIX_YAML_PRETTIER=true \
    -e DEFAULT_BRANCH=main \

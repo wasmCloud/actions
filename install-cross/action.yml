@@ -1,5 +1,5 @@
-name: 'Install Cross'
-description: 'Common action to install the `cross` tool'
+name: "Install Cross"
+description: "Common action to install the `cross` tool"
 runs:
   using: "composite"
   steps:
