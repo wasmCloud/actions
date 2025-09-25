@@ -22,6 +22,7 @@ Add the following step to your GitHub workflow:
     component_path: ${{ steps.build.outputs.artifact_path }}
     registry: ghcr.io # optional, defaults to ghcr.io
     attestation: true # optional, defaults to false
+    image_tags: latest,v1.0.0,${{ github.sha }} # optional, defaults to branch name
 ```
 
 ## Prerequisites
@@ -46,3 +47,4 @@ permissions:
 - `registry`: Container registry to push to (optional, defaults to `ghcr.io`)
 - `component_path`: Path to the built WebAssembly component (required)
 - `attestation`: Whether to generate an attestation for the published artifact (optional, defaults to `false`)
+- `image_tags`: Additional tags to apply to the published image, comma-separated (optional, defaults to branch name)
