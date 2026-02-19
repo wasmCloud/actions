@@ -40,7 +40,8 @@ jobs:
       - name: Create test Rust project
         working-directory: test-dir
         run: |
-          cargo init --name test-component
+          cargo init --lib --name test-component
+          printf '\n[lib]\ncrate-type = ["cdylib"]\n' >> Cargo.toml
 
       - name: Setup cargo-auditable
         uses: ./setup-wash-cargo-auditable
