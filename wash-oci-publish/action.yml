@@ -43,34 +43,39 @@ runs:
         username: ${{ github.actor }}
         password: ${{ inputs.token }}
 
-    - name: Set IMAGE_NAME env as lower-case repository name
+    - name: Set image name and SBOM filename
+      id: image-info
       shell: bash
       run: |
-        echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-        # Create a sanitized filename for SBOM (replace / with -)
-        echo "SBOM_FILENAME=$(echo "${GITHUB_REPOSITORY,,}" | tr '/' '-').spdx.json" >> $GITHUB_ENV
+        echo "image_name=${GITHUB_REPOSITORY,,}" >> $GITHUB_OUTPUT
+        echo "sbom_filename=$(echo "${GITHUB_REPOSITORY,,}" | tr '/' '-').spdx.json" >> $GITHUB_OUTPUT
 
     - name: Push Wasm component to container registry
       id: push
       shell: bash
+      env:
+        IMAGE_TAGS: ${{ inputs.image_tags }}
+        REGISTRY: ${{ inputs.registry }}
+        IMAGE_NAME: ${{ steps.image-info.outputs.image_name }}
+        COMPONENT_PATH: ${{ inputs.component_path }}
       run: |
         # Split comma-separated tags and push each one
-        IFS=',' read -ra TAGS <<< "${{ inputs.image_tags }}"
+        IFS=',' read -ra TAGS <<< "$IMAGE_TAGS"
 
         digests=()
         for tag in "${TAGS[@]}"; do
           # Trim whitespace
           tag=$(echo "$tag" | xargs)
-          echo "Pushing ${{ inputs.registry }}/${{ env.IMAGE_NAME }}:$tag"
-          
-          push_output=$(wash oci push --output json "${{ inputs.registry }}/${{ env.IMAGE_NAME }}:$tag" "${{ inputs.component_path }}")
+          echo "Pushing $REGISTRY/$IMAGE_NAME:$tag"
+
+          push_output=$(wash oci push --output json "$REGISTRY/$IMAGE_NAME:$tag" "$COMPONENT_PATH")
           digest=$(echo "$push_output" | jq -r .data.digest)
-          
+
           if [ -z "$digest" ] || [ "$digest" = "null" ]; then
             echo "Failed to determine pushed component digest for tag $tag: $push_output" >&2
             exit 1
           fi
-          
+
           echo "Component pushed with digest: $digest for tag: $tag"
           digests+=("$digest")
         done
@@ -83,7 +88,7 @@ runs:
       if: ${{ inputs.attestation == 'true' }}
       uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
       with:
-        subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+        subject-name: ${{ inputs.registry }}/${{ steps.image-info.outputs.image_name }}
         subject-digest: ${{ steps.push.outputs.digest }}
         push-to-registry: true
 
@@ -95,6 +100,8 @@ runs:
     - name: Install CycloneDX CLI
       if: ${{ inputs.attestation == 'true' }}
       shell: bash
+      env:
+        CYCLONEDX_VERSION: ${{ inputs.cyclonedx-version }}
       run: |
         # Detect OS and architecture for cyclonedx-cli binary
         case "$(uname -s)" in
@@ -124,9 +131,9 @@ runs:
           *) echo "Unsupported OS: $(uname -s)"; exit 1 ;;
         esac
 
-        # Pin to known good version 0.29.1
+        # Pin to known good version
         echo "Downloading cyclonedx-cli binary: $BINARY_NAME"
-        curl -LO "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v${{ inputs.cyclonedx-version }}/$BINARY_NAME"
+        curl -LO "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v${CYCLONEDX_VERSION}/${BINARY_NAME}"
         chmod +x "$BINARY_NAME"
 
         # Create a directory for the binary and add to PATH
@@ -135,30 +142,36 @@ runs:
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Extract SBOM from component
+      id: extract-sbom
       if: ${{ inputs.attestation == 'true' }}
       shell: bash
+      env:
+        COMPONENT_PATH: ${{ inputs.component_path }}
       run: |
         # Create absolute path for CycloneDX SBOM file
         CYCLONEDX_PATH="$(pwd)/$(echo "${GITHUB_REPOSITORY,,}" | tr '/' '-').cyclonedx.json"
 
         # Extract CycloneDX SBOM
-        auditable2cdx ${{ inputs.component_path }} > "$CYCLONEDX_PATH"
+        auditable2cdx "$COMPONENT_PATH" > "$CYCLONEDX_PATH"
         echo "CycloneDX SBOM created at: $CYCLONEDX_PATH"
 
-        # Store path for next step
-        echo "CYCLONEDX_ABS_PATH=$CYCLONEDX_PATH" >> $GITHUB_ENV
+        echo "cyclonedx_path=$CYCLONEDX_PATH" >> $GITHUB_OUTPUT
 
     - name: Convert SBOM to SPDX
+      id: convert-sbom
       if: ${{ inputs.attestation == 'true' }}
       shell: bash
+      env:
+        SBOM_FILENAME: ${{ steps.image-info.outputs.sbom_filename }}
+        CYCLONEDX_ABS_PATH: ${{ steps.extract-sbom.outputs.cyclonedx_path }}
       run: |
         # Create absolute path for SPDX SBOM file
-        SBOM_PATH="$(pwd)/${{ env.SBOM_FILENAME }}"
+        SBOM_PATH="$(pwd)/$SBOM_FILENAME"
 
         # Convert CycloneDX to SPDX format for GitHub attestation
-        cyclonedx convert --input-file "${{ env.CYCLONEDX_ABS_PATH }}" --output-file "$SBOM_PATH" --output-format spdxjson
+        cyclonedx convert --input-file "$CYCLONEDX_ABS_PATH" --output-file "$SBOM_PATH" --output-format spdxjson
 
-        echo "SBOM_ABS_PATH=$SBOM_PATH" >> $GITHUB_ENV
+        echo "sbom_abs_path=$SBOM_PATH" >> $GITHUB_OUTPUT
 
         # Debug: Print SBOM file info and contents
         echo "SPDX SBOM file created at: $SBOM_PATH"
@@ -171,6 +184,6 @@ runs:
     - uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3.0.0
       if: ${{ inputs.attestation == 'true' }}
       with:
-        subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
+        subject-name: ${{ inputs.registry }}/${{ steps.image-info.outputs.image_name }}
         subject-digest: ${{ steps.push.outputs.digest }}
-        sbom-path: ${{ env.SBOM_ABS_PATH }}
+        sbom-path: ${{ steps.convert-sbom.outputs.sbom_abs_path }}

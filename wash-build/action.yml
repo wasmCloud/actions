@@ -62,8 +62,10 @@ runs:
     - name: Verify Wasm binary exists
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        COMPONENT_PATH: ${{ steps.build.outputs.component_path }}
       run: |
-        if [ ! -f "${{ steps.build.outputs.component_path }}" ]; then
-          echo "Error: ${{ steps.build.outputs.component_path }} not found!" >&2
+        if [ ! -f "$COMPONENT_PATH" ]; then
+          echo "Error: $COMPONENT_PATH not found!" >&2
           exit 1
         fi

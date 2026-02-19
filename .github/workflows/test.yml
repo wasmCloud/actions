@@ -32,21 +32,20 @@ jobs:
         with:
           wash-version: wash-v2.0.0-rc.7
 
-      # create a test working directory
+      # create a test working directory with a Rust project
       - name: Create test directory
         run: |
           mkdir test-dir
-          cd test-dir
-
-      - name: Setup cargo-auditable
-        uses: ./setup-wash-cargo-auditable
-        with:
-          working-directory: test-dir
 
       - name: Create test Rust project
         working-directory: test-dir
         run: |
           cargo init --name test-component
+
+      - name: Setup cargo-auditable
+        uses: ./setup-wash-cargo-auditable
+        with:
+          working-directory: test-dir
 
       - name: Test wash-build action
         id: build
@@ -70,9 +69,9 @@ jobs:
         shell: bash
         working-directory: test-dir
         run: |
-          jq . .wash/config.json
-          if ! jq -e '.build.rust.custom_command | arrays | contains(["auditable"])' .wash/config.json; then
-            echo "Error: .wash/config.json does not contain 'auditable' in custom_command"
+          cat .wash/config.yaml
+          if ! grep -q 'auditable' .wash/config.yaml; then
+            echo "Error: .wash/config.yaml does not contain 'auditable' in build command"
             exit 1
           fi
 

@@ -6,6 +6,10 @@ description: |
   wash CLI must be installed and available in PATH. We recommend using the
   wasmcloud/setup-wash-action prior to this action to install wash.
 
+  A Cargo project (Cargo.toml) must already exist in the working directory
+  before calling this action, as it reads the package name to determine
+  the component output path.
+
 inputs:
   working-directory:
     description: "Directory containing the WebAssembly project"
@@ -19,32 +23,35 @@ runs:
       with:
         tool: cargo-auditable,cargo-audit
 
-    - name: Set auditable as custom build command in .wash/config.json
+    - name: Set auditable as custom build command in .wash/config.yaml
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        set -euo pipefail
+
+        # Derive the wasm artifact path from the Cargo package name
+        PACKAGE_NAME=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].name' | tr '-' '_')
+        COMPONENT_PATH="target/wasm32-wasip2/release/${PACKAGE_NAME}.wasm"
+
         mkdir -p .wash
 
-        # Create or update config with jq, merging with existing config
-        if [ -f .wash/config.json ]; then
-          # Merge with existing config, ensuring nested objects exist
-          jq '(.build // {}) as $build | 
-              (.build.rust // {}) as $rust |
-              .build = ($build | .rust = ($rust | 
-                .custom_command = ["cargo", "auditable", "build", "--release", "--target", "wasm32-wasip2", "--message-format", "json"] |
-                .target = "wasm32-wasip2" |
-                .release = true
-              ))' .wash/config.json > .wash/config.json.tmp
-          mv .wash/config.json.tmp .wash/config.json
-        else
-          # Create new config
-          jq -n '{
-            "build": {
-              "rust": {
-                "target": "wasm32-wasip2",
-                "release": true,
-                "custom_command": ["cargo", "auditable", "build", "--release", "--target", "wasm32-wasip2", "--message-format", "json"]
-              }
-            }
-          }' > .wash/config.json
-        fi
+        # Write .wash/config.yaml in wash v2.0 format, preserving any existing
+        # non-build settings by merging via Python's yaml module
+        python3 - << 'PYSCRIPT'
+import yaml, os, sys
+
+config_path = '.wash/config.yaml'
+config = {}
+if os.path.exists(config_path):
+    with open(config_path) as f:
+        config = yaml.safe_load(f) or {}
+
+config['build'] = {
+    'command': 'cargo auditable build --release --target wasm32-wasip2',
+    'component_path': os.environ['COMPONENT_PATH'],
+}
+
+os.makedirs('.wash', exist_ok=True)
+with open(config_path, 'w') as f:
+    yaml.dump(config, f, default_flow_style=False)
+PYSCRIPT
