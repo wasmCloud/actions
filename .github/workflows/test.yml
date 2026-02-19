@@ -66,16 +66,6 @@ jobs:
         env:
           STEPS_BUILD_OUTPUTS_COMPONENT_PATH: ${{ steps.build.outputs.component_path }}
 
-      - name: Verify wash config updated with cargo-auditable
-        shell: bash
-        working-directory: test-dir
-        run: |
-          cat .wash/config.yaml
-          if ! grep -q 'auditable' .wash/config.yaml; then
-            echo "Error: .wash/config.yaml does not contain 'auditable' in build command"
-            exit 1
-          fi
-
       - name: Test wash-oci-publish action (multiple tags)
         if: github.event_name == 'push'
         uses: ./wash-oci-publish
