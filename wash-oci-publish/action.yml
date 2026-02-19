@@ -98,6 +98,7 @@ runs:
         tool: auditable2cdx
 
     - name: Install CycloneDX CLI
+      id: install-cyclonedx
       if: ${{ inputs.attestation == 'true' }}
       shell: bash
       env:
@@ -134,12 +135,12 @@ runs:
         # Pin to known good version
         echo "Downloading cyclonedx-cli binary: $BINARY_NAME"
         curl -LO "https://github.com/CycloneDX/cyclonedx-cli/releases/download/v${CYCLONEDX_VERSION}/${BINARY_NAME}"
-        chmod +x "$BINARY_NAME"
 
-        # Create a directory for the binary and add to PATH
         mkdir -p "$HOME/.local/bin"
         mv "$BINARY_NAME" "$HOME/.local/bin/cyclonedx"
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        chmod +x "$HOME/.local/bin/cyclonedx"
+
+        echo "cyclonedx_bin=$HOME/.local/bin/cyclonedx" >> $GITHUB_OUTPUT
 
     - name: Extract SBOM from component
       id: extract-sbom
@@ -164,12 +165,13 @@ runs:
       env:
         SBOM_FILENAME: ${{ steps.image-info.outputs.sbom_filename }}
         CYCLONEDX_ABS_PATH: ${{ steps.extract-sbom.outputs.cyclonedx_path }}
+        CYCLONEDX_BIN: ${{ steps.install-cyclonedx.outputs.cyclonedx_bin }}
       run: |
         # Create absolute path for SPDX SBOM file
         SBOM_PATH="$(pwd)/$SBOM_FILENAME"
 
         # Convert CycloneDX to SPDX format for GitHub attestation
-        cyclonedx convert --input-file "$CYCLONEDX_ABS_PATH" --output-file "$SBOM_PATH" --output-format spdxjson
+        "$CYCLONEDX_BIN" convert --input-file "$CYCLONEDX_ABS_PATH" --output-file "$SBOM_PATH" --output-format spdxjson
 
         echo "sbom_abs_path=$SBOM_PATH" >> $GITHUB_OUTPUT
 

@@ -35,23 +35,6 @@ runs:
 
         mkdir -p .wash
 
-        # Write .wash/config.yaml in wash v2.0 format, preserving any existing
-        # non-build settings by merging via Python's yaml module
-        python3 - << 'PYSCRIPT'
-import yaml, os, sys
-
-config_path = '.wash/config.yaml'
-config = {}
-if os.path.exists(config_path):
-    with open(config_path) as f:
-        config = yaml.safe_load(f) or {}
-
-config['build'] = {
-    'command': 'cargo auditable build --release --target wasm32-wasip2',
-    'component_path': os.environ['COMPONENT_PATH'],
-}
-
-os.makedirs('.wash', exist_ok=True)
-with open(config_path, 'w') as f:
-    yaml.dump(config, f, default_flow_style=False)
-PYSCRIPT
+        # Write .wash/config.yaml in wash v2.0 format
+        printf 'build:\n  command: cargo auditable build --release --target wasm32-wasip2\n  component_path: "%s"\n' \
+          "$COMPONENT_PATH" > .wash/config.yaml
