@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: recursive
           fetch-depth: 0
@@ -30,7 +30,7 @@ jobs:
       - name: Setup wash CLI
         uses: ./setup-wash-action
         with:
-          wash-version: wash-v1.0.0-beta.8
+          wash-version: wash-v2.0.0-rc.7
 
       # create a test working directory
       - name: Create test directory

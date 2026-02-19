@@ -37,7 +37,7 @@ runs:
   using: "composite"
   steps:
     - name: Login to container registry
-      uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
       with:
         registry: ${{ inputs.registry }}
         username: ${{ github.actor }}
@@ -81,13 +81,13 @@ runs:
 
     - name: Generate artifact attestation
       if: ${{ inputs.attestation == 'true' }}
-      uses: actions/attest-build-provenance@v3
+      uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
       with:
         subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
         subject-digest: ${{ steps.push.outputs.digest }}
         push-to-registry: true
 
-    - uses: taiki-e/install-action@4575ae687efd0e2c78240087f26013fb2484987f # v2.62.6
+    - uses: taiki-e/install-action@1cf3de8de323df92fe08c793e53eaef58799aec4 # v2.68.3
       if: ${{ inputs.attestation == 'true' }}
       with:
         tool: auditable2cdx
@@ -168,7 +168,7 @@ runs:
         echo "SPDX SBOM file format detection:"
         file "$SBOM_PATH"
 
-    - uses: actions/attest-sbom@v3
+    - uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3.0.0
       if: ${{ inputs.attestation == 'true' }}
       with:
         subject-name: ${{ inputs.registry }}/${{ env.IMAGE_NAME }}
