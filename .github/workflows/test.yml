@@ -30,7 +30,7 @@ jobs:
       - name: Setup wash CLI
         uses: ./setup-wash-action
         with:
-          wash-version: wash-v2.0.0-rc.8
+          wash-version: v2.0.1
 
       # create a test working directory with a Rust project
       - name: Create test directory
